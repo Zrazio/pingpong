@@ -1,13 +1,15 @@
 from imports import *
 from endscreen import *
 
+chuj = 0.8
 
-def magicPerspectiveProjector(points, distanceFromPlane = 200):  # points -> ndarray with shape [x, 3]
+def magicPerspectiveProjector(points, distanceFromPlane = 2000* chuj):  # points -> ndarray with shape [x, 3]
     try:
         pointsPrim = points * distanceFromPlane / points[:, 2]
     except ValueError:
         pointsPrim = points * distanceFromPlane / points[:, 2, np.newaxis]
     # return pointsPrim.astype(int)
+    pointsPrim[:, 2] = points[:, 2]
     return pointsPrim
 
 
@@ -16,51 +18,19 @@ class AThread(QtCore.QThread):
         super().__init__()
         self.view = view
         self.scene = view.graphicsscene
-        self.ingame = True
-        self.endscene = EndScreen(self.view.scenesize,view)
-
-    def updateCounters(self):
-        #del self.scene.scoreText
-       # del self.endscene.scoreText
-        #self.scene.scoreText = TextItem("Score: {0} : {1}".format(self.view.score[0], self.view.score[1]),
-                               #  [self.scene.scenesize[0] - 100, -20], False, self.scene, size=29)
-        #self.endscene.scoreText = TextItem("Score: {0} : {1}".format(self.view.score[0], self.view.score[1]),
-                                      #  [self.endscene.scenesize[0] - 100, -20], False, self.endscene, size=29)
-        #self.scene.removeItem(self.scene.scoreText)
-        #self.endscene.removeItem(self.endscene.scoreText)
-        self.scene.updateCounters()
-        self.endscene.updateCounters()
-        #self.endscene.scoreText = TextItem("Score: {0} : {1}".format(self.view.score[0], self.view.score[1]),
-         #                                   [self.endscene.scenesize[0] - 100, -20], False, self.endscene, size=29)
-        pass
 
     def run(self):
         while 1:
-            if self.view.myPoint == True:
-                self.view.score[1]  = self.view.score[1] + 1
-                self.updateCounters()
-                self.view.setCursor(QtCore.Qt.ArrowCursor)
-                self.view.setScene(EndScreen(self.view.scenesize,"pupcia"))
-                self.view.myPoint = False
-                self.ingame = False
-
-            elif self.view.enemyPoint == True:
-                self.view.score[0]  = self.view.score[0] + 1
-                self.updateCounters()
-                self.view.setCursor(QtCore.Qt.ArrowCursor)
-                self.view.setScene(self.endscene)
-                self.view.enemyPoint = False
-                self.ingame = False
-
-            if self.view.restart:
-                self.scene.restart()
-                self.view.setScene(self.scene)
-                self.view.restart = False
-                self.ingame = True
-
-            if self.ingame:
-                print(self.view.score)
-                self.scene.run()
+            if self.scene.myPoint == True:
+                self.view.setScene(EndScreen(self.view.scenesize),"kurwachuj")
+            elif self.scene.enemyPoint == True:
+                print("pupcia")
+               # x = EndScreen(self.view.scenesize)
+                self.view.setScene(EndScreen(self.view.scenesize,"kurwachuj"))
+                playsound.playsound('gameover.mp3', True)
+            self.scene.update()
+            self.scene.moveBall()
+            self.scene.checkCollision()
             time.sleep(1./120)
 
 
@@ -74,7 +44,6 @@ class Racket(QtWidgets.QGraphicsItem):
         self.width = width
         self.height = height
         self.nodes = None
-        self.zPos = zPosition
         self.position = np.array([0, 0, zPosition])
         self.createNodes()
         self.color = color
@@ -82,9 +51,6 @@ class Racket(QtWidgets.QGraphicsItem):
 
     def getRacketRect(self):
         return [self.position[0]-(self.width/2),self.position[1] - (self.height/2), self.width, self.height]
-
-    def startingPos(self):
-        self.position = np.array([0, 0, self.zPos])
 
     def move(self, newPosition):
         if newPosition[0] > self.xLimit:
@@ -179,46 +145,148 @@ class BackgroundRect(QtWidgets.QGraphicsItem):
                     self.origin[0] + self.projectedNodes[0][0], self.origin[1] + self.projectedNodes[0][1])
 
 
+
+
+
+#
+# class Ball(QtWidgets.QGraphicsItem):
+#     def __init__(self, windowSize, radius, scene, color=QtCore.Qt.yellow):
+    #     super().__init__()
+    #     self.origin = windowSize/2
+    #     self.velocityVector = np.array([-2.5, 5.0, 3.])
+    #     self.position = np.array([5, 5, 280])
+    #     self.radius = radius
+    #     self.color = color
+    #     self.nodes = None
+    #     self.createNodes()
+    #     scene.addItem(self)
+    #
+    # def move(self):
+    #     self.position = self.position + self.velocityVector
+    #     self.createNodes()
+    #     return self.position
+    #
+    # def boundingRect(self):
+    #     projectedRadius = np.linalg.norm(self.projectedNodes[0] - self.projectedNodes[1])
+    #     return QtCore.QRectF(self.projectedNodes[0][0] + self.origin[0] - projectedRadius, self.projectedNodes[0][1] + self.origin[1] - projectedRadius,
+    #                    projectedRadius * 2, projectedRadius * 2)
+    #
+    # def paint(self,p ,o ,widgets=None):
+    #     pen = QtGui.QPen(self.color, 2, QtCore.Qt.SolidLine)
+    #     brush = QtGui.QBrush(self.color)
+    #     p.setPen(pen)
+    #     p.setBrush(brush)
+    #     projectedRadius = np.linalg.norm(self.projectedNodes[0] - self.projectedNodes[1])
+    #     # print(projectedRadius)
+    #     p.drawEllipse(self.projectedNodes[0][0] + self.origin[0] - projectedRadius, self.projectedNodes[0][1] + self.origin[1] - projectedRadius,
+    #                    projectedRadius * 2, projectedRadius * 2)
+    #
+    # def createNodes(self):
+    #     self.nodes = np.array([self.position, [self.position[0] + self.radius, self.position[1], self.position[2]]])
+    #     self.projectedNodes = magicPerspectiveProjector(self.nodes)
+    #     # print(self.projectedNodes)
+
+
 class Ball(QtWidgets.QGraphicsItem):
     def __init__(self, windowSize, radius, scene, color=QtCore.Qt.yellow):
         super().__init__()
-        self.origin = windowSize/2
-        self.velocityVector = np.array([-2.5, 5.0, 3.])
-        self.position = np.array([5, 5, 280])
+        self.origin = windowSize / 2
+        self.velocityVector = np.array([5, 5.0, 20])
+        self.position = np.array([5, 5, 2201 * chuj])
         self.radius = radius
         self.color = color
         self.nodes = None
-        self.createNodes()
+        self.points = None
+        self.precision = 25
+        # self.createNodes()
+        self.generateSphere()
         scene.addItem(self)
-
-    def startingPos(self):
-        self.velocityVector = np.array([-2.5, 5.0, 3.])
-        self.position = np.array([5, 5, 280])
 
     def move(self):
         self.position = self.position + self.velocityVector
-        self.createNodes()
-        return self.position
+        self.rotateSphere()
+        # self.points = self.points + self.velocityVector
+
+    def getRotationMatrix(self, phi, axis):
+        s = np.sin(phi)
+        c = np.cos(phi)
+        if axis == 'x':
+            return np.array([[1, 0, 0],
+                             [0, c, -s],
+                             [0, s, c]])
+        elif axis == 'y':
+            return np.array([[c, 0, s],
+                             [0, 1, 0],
+                             [-s, 0, c]])
+        elif axis == 'z':
+            return np.array([[c, -s, 0],
+                             [s, c, 0],
+                             [0, 0, 1]])
+
+    def generateSphere(self):
+        phis = np.linspace(0, 2 * np.pi,  self.precision)
+        thetas = np.linspace(-np.pi, np.pi,  self.precision / 2)
+
+        points = np.zeros((phis.size, thetas.size, 3))
+        for i, phi in enumerate(phis):
+            for j, theta in enumerate(thetas):
+                x = self.radius * np.cos(phi) * np.cos(theta)
+                y = self.radius * np.cos(phi) * np.sin(theta)
+                z = self.radius * np.sin(phi)
+                print(z)
+                points[i][j] = np.array([x, y, z])
+
+        self.points = points
+
+    def rotateSphere(self):
+        self.points = self.points.dot(self.getRotationMatrix(0.02, 'y'))
+
+    # def boundingRect(self):
+    #     projectedRadius = np.linalg.norm(self.projectedNodes[0] - self.projectedNodes[1])
+    #     return QtCore.QRectF(self.projectedNodes[0][0] + self.origin[0] - projectedRadius,
+    #                          self.projectedNodes[0][1] + self.origin[1] - projectedRadius,
+    #                          projectedRadius * 2, projectedRadius * 2)
 
     def boundingRect(self):
-        projectedRadius = np.linalg.norm(self.projectedNodes[0] - self.projectedNodes[1])
-        return QtCore.QRectF(self.projectedNodes[0][0] + self.origin[0] - projectedRadius, self.projectedNodes[0][1] + self.origin[1] - projectedRadius,
-                       projectedRadius * 2, projectedRadius * 2)
+        return QtCore.QRectF(self.position[0] + self.origin[0] - self.radius,
+                             self.position[1] + self.origin[1] - self.radius,
+                             self.radius * 2, self.radius * 2)
 
-    def paint(self,p ,o ,widgets=None):
-        pen = QtGui.QPen(self.color, 2, QtCore.Qt.SolidLine)
+    def paint(self, p, o, widgets=None):
+        pen = QtGui.QPen(QtCore.Qt.black, 0.3, QtCore.Qt.SolidLine)
         brush = QtGui.QBrush(self.color)
         p.setPen(pen)
         p.setBrush(brush)
-        projectedRadius = np.linalg.norm(self.projectedNodes[0] - self.projectedNodes[1])
-        # print(projectedRadius)
-        p.drawEllipse(self.projectedNodes[0][0] + self.origin[0] - projectedRadius, self.projectedNodes[0][1] + self.origin[1] - projectedRadius,
-                       projectedRadius * 2, projectedRadius * 2)
+        # projectedRadius = np.linalg.norm(self.projectedNodes[0] - self.projectedNodes[1])
+        # # print(projectedRadius)
+        # p.drawEllipse(self.projectedNodes[0][0] + self.origin[0] - projectedRadius,
+        #               self.projectedNodes[0][1] + self.origin[1] - projectedRadius,
+        #               projectedRadius * 2, projectedRadius * 2)
+        shapeBuffer = self.points.shape
+        points = np.reshape(magicPerspectiveProjector(np.reshape(self.points + self.position, (-1, 3))), shapeBuffer)
+        # points = self.points + self.position
+        x0 = self.origin[0]
+        y0 = self.origin[1]
+        for i in range(1, len(points)):
+            for j in range(1, len(points[0])):
+                print(self.points[i][j][2])
+                if (self.points[i][j][2] + self.points[i-1][j-1][2]) < 0:
+                    p.drawConvexPolygon(QtCore.QPoint(points[i][j][0] + x0, points[i][j][1] + y0),
+                                        QtCore.QPoint(points[i-1][j][0] + x0, points[i-1][j][1] + y0),
+                                        QtCore.QPoint(points[i-1][j-1][0] + x0, points[i-1][j-1][1] + y0),
+                                        QtCore.QPoint(points[i][j-1][0] + x0, points[i][j-1][1] + y0))
 
-    def createNodes(self):
-        self.nodes = np.array([self.position, [self.position[0] + self.radius, self.position[1], self.position[2]]])
-        self.projectedNodes = magicPerspectiveProjector(self.nodes)
-        # print(self.projectedNodes)
+
+
+    #
+    # def createNodes(self):
+    #     self.nodes = np.array([self.position, [self.position[0] + self.radius, self.position[1], self.position[2]]])
+    #     self.projectedNodes = magicPerspectiveProjector(self.nodes)
+    #     # print(self.projectedNodes)
+
+
+
+
 
 
 class Game(QtWidgets.QGraphicsView):
@@ -227,14 +295,22 @@ class Game(QtWidgets.QGraphicsView):
         self.resize(1500,1000)
         self.setMouseTracking(True)
         self.scenesize = (1400,950)
-        self.score = [0, 0]
+        self.graphicsscene = Scene(self.scenesize)
         self.moveracket = False
-        self.myPoint = False
-        self.enemyPoint = False
-        self.restart = False
-        self.graphicsscene = Scene(self.scenesize,self)
         self.setScene(self.graphicsscene)
 
+
+    def mouseMoveEvent(self,e):
+        if self.moveracket :
+            self.graphicsscene.moveRacket(e)
+
+    def mousePressEvent(self,e):
+        if self.moveracket:
+            self.moveracket = False
+            self.setCursor(QtCore.Qt.ArrowCursor)
+        else:
+            self.moveracket = True
+            self.setCursor(QtCore.Qt.BlankCursor)
 
 
 class App(QtWidgets.QMainWindow):
@@ -248,16 +324,14 @@ class App(QtWidgets.QMainWindow):
 
 
 class Scene(QtWidgets.QGraphicsScene):
-    def __init__(self,size,view):
+    def __init__(self,size):
         super().__init__()
         self.scenesize = size
-        self.view = view
-        self.startDistance = 220
-        self.endDistance = 700
+        self.startDistance = 2200 * chuj
+        self.endDistance = 7000 * chuj
         self.perspectiveRects = []
         self.windowSize = np.array(size)
         self.origin = self.windowSize/2
-        self.setSceneRect(QtCore.QRectF(0, 0, size[0], size[1]))
         gradient = QtGui.QLinearGradient(QtCore.QPointF(0, 0), QtCore.QPointF(100, 100))
         gradient.setColorAt(0, QtCore.Qt.black)
         painter = QtGui.QPainter()
@@ -268,62 +342,23 @@ class Scene(QtWidgets.QGraphicsScene):
         self.ball = Ball(self.windowSize, 60, self)
         self.ballRect = BackgroundRect(self.windowSize, 60,self, color=QtCore.Qt.white)
         self.myRacket = Racket(self.windowSize,self.startDistance,self,QtCore.Qt.red)
-        self.scoreText = TextItem("FUCK: {0} : {1}".format(self.view.score[0], self.view.score[1]), [self.scenesize[0] - 100, -20], False, self, size=29)
-        self.scoreText.setPlainText("pupcia")
-        self.scoreText.setPos(self.scenesize[0] - 100, -20)
-        self.addItem(self.scoreText)
-        #self.connect()
         self.myPoint = False
         self.enemyPoint = False
-        self.moveracket = False
-
-        #self.objects = [self.enemyRacket,self.ball]
-        #self.objects = list(zip(self.objects,self.perspectiveRects))
-
-    def updateCounters(self):
-        self.removeItem(self.scoreText)
-        self.scorePOOP =TextItem("FUCK: {0} : {1}".format(self.view.score[0], self.view.score[1]),
-                                        [self.scenesize[0] - 100, -20], False, self, size=29)
-
-    def run(self):
-        self.update()
-        #self.scoreText.setPlainText(QtCore."Score: {0} : {1}".format(self.view.score[0],self.view.score[1]))
-        self.moveBall()
-        self.checkCollision()
-
-    def mouseMoveEvent(self, event):
-        if self.moveracket :
-            self.myRacket.move(np.array([event.scenePos().x() - self.origin[0], event.scenePos().y() - self.origin[1]], dtype=int))
-
-    def mousePressEvent(self, e):
-        if self.moveracket:
-            self.moveracket = False
-            self.view.setCursor(QtCore.Qt.ArrowCursor)
-        else:
-            self.moveracket = True
-            self.view.setCursor(QtCore.Qt.BlankCursor)
 
     def createPerspectiveRects(self):
         N = 8
         for dist in np.linspace(self.startDistance, self.endDistance, N):
             self.perspectiveRects.append(BackgroundRect(self.windowSize, dist,self))
 
-    def restart(self):
-        self.myRacket.startingPos()
-        self.enemyRacket.startingPos()
-        self.ball.startingPos()
+    def moveRacket(self,event):
+        self.myRacket.move(np.array([event.x() - self.origin[0], event.y() - self.origin[1]], dtype=int))
+        #self.update()
 
     def moveBall(self):
-        z = self.ball.move()
-        self.ballRect.moveRect(z[2])
-        self.enemyRacket.move([z[0],z[1]])
-
-    def invisible(self):
-        for i in self.perspectiveRects:
-            i.setVisible(False)
-        self.ball.setVisible(False)
-        self.enemyRacket.setVisible(False)
-        self.myRacket.setVisible(False)
+        self.ball.move()
+        position = self.ball.position
+        self.ballRect.moveRect(position[2])
+        self.enemyRacket.move([position[0],position[1]])
 
     def checkCollision(self):
         rad = self.ball.radius
@@ -349,7 +384,7 @@ class Scene(QtWidgets.QGraphicsScene):
                 self.ball.velocityVector[2] *= -1
             else:
                 self.ball.velocityVector[2] *= 0
-                self.view.enemyPoint = True
+                self.enemyPoint = True
 
         elif ballZ  > meta:
             rect = self.enemyRacket.getRacketRect()
@@ -357,7 +392,8 @@ class Scene(QtWidgets.QGraphicsScene):
                 self.ball.velocityVector[2] *= -1
             else:
                 self.ball.velocityVector[2] *= -1
-                self.view.myPoint = True
+                self.myPoint = True
+
 
 
 if __name__ == "__main__":
